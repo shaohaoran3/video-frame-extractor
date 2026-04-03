@@ -57,8 +57,9 @@ def main():
     ff = find_local_ffmpeg()
     if ff:
         ff_abspath = os.path.abspath(ff)
-        # PyInstaller 的 --add-binary 格式: SRC;DEST
-        args.extend(["--add-binary", f"{ff_abspath};."])
+        # PyInstaller 的 --add-binary 格式: Windows 使用 ';'，POSIX 使用 ':'
+        sep = ";" if sys.platform == "win32" else ":"
+        args.append(f"--add-binary={ff_abspath}{sep}.")
         print(f"Including ffmpeg binary: {ff_abspath}")
 
     print(f"Running PyInstaller with args: {args}")
