@@ -1,0 +1,83 @@
+name: Build multi-platform
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+      - name: Install ffmpeg (choco)
+        run: choco install ffmpeg -y
+        shell: powershell
+      - name: Get ffmpeg path
+        run: |
+          $p = (Get-Command ffmpeg).Source
+          echo "FFMPEG_SRC=$p" >> $env:GITHUB_ENV
+        shell: powershell
+      - name: Build
+        run: python build.py
+        env:
+          FFMPEG_SRC: ${{ env.FFMPEG_SRC }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VideoFrameExtractor-windows
+          path: dist/VideoFrameExtractor.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install PyInstaller and ffmpeg
+        run: |
+          sudo apt-get update
+          pip install pyinstaller
+          sudo apt-get install -y ffmpeg
+      - name: Get ffmpeg path
+        run: echo "FFMPEG_SRC=$(which ffmpeg)" >> $GITHUB_ENV
+      - name: Build
+        run: python build.py
+        env:
+          FFMPEG_SRC: ${{ env.FFMPEG_SRC }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VideoFrameExtractor-linux
+          path: dist/VideoFrameExtractor
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install ffmpeg (Homebrew)
+        run: |
+          brew update || true
+          brew install ffmpeg
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+      - name: Get ffmpeg path
+        run: echo "FFMPEG_SRC=$(which ffmpeg)" >> $GITHUB_ENV
+      - name: Build
+        run: python build.py
+        env:
+          FFMPEG_SRC: ${{ env.FFMPEG_SRC }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VideoFrameExtractor-macos
+          path: dist/VideoFrameExtractor.app
