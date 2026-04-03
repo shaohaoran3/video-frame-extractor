@@ -76,8 +76,22 @@ jobs:
         run: python build.py
         env:
           FFMPEG_SRC: ${{ env.FFMPEG_SRC }}
-      - name: Upload artifact
+      - name: Create DMG
+        run: |
+          TMPDIR=$(mktemp -d)
+          cp -R dist/VideoFrameExtractor.app "$TMPDIR/"
+          ln -s /Applications "$TMPDIR/Applications"
+          hdiutil create -volname "VideoFrameExtractor" -srcfolder "$TMPDIR" -ov -format UDZO "dist/VideoFrameExtractor.dmg"
+          rm -rf "$TMPDIR"
+
+      - name: Upload artifact (.app)
         uses: actions/upload-artifact@v4
         with:
-          name: VideoFrameExtractor-macos
+          name: VideoFrameExtractor-macos-app
           path: dist/VideoFrameExtractor.app
+
+      - name: Upload artifact (dmg)
+        uses: actions/upload-artifact@v4
+        with:
+          name: VideoFrameExtractor-macos-dmg
+          path: dist/VideoFrameExtractor.dmg
