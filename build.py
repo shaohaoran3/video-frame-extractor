@@ -14,24 +14,90 @@ import PyInstaller.__main__
 
 
 def find_local_ffmpeg():
-    """查找 ffmpeg 可执行文件，优先使用环境变量 FFMPEG_SRC。"""
+    """查找 ffmpeg 可执行文件。
+
+    优先检测：
+    0) 脚本所在目录和当前工作目录（同目录下的 ffmpeg/ffmpeg.exe 或 ffmpeg/bin/ffmpeg）
+    1) 环境变量 `FFMPEG_SRC`
+    2) PATH（`shutil.which`）
+    3) 常见系统/包管理器路径
+    4) 手动扫描 PATH 各目录
+    """
+    def is_executable_file(p):
+        try:
+            return os.path.isfile(p) and os.access(p, os.X_OK)
+        except Exception:
+            return False
+
+    # 0) 优先检查脚本目录和当前工作目录
+    try:
+        script_dir = os.path.abspath(os.path.dirname(__file__))
+    except Exception:
+        script_dir = None
+    try:
+        cwd = os.path.abspath(os.getcwd())
+    except Exception:
+        cwd = None
+
+    for base in (script_dir, cwd):
+        if not base:
+            continue
+        # 直接可执行文件
+        for name in ("ffmpeg", "ffmpeg.exe"):
+            candidate = os.path.join(base, name)
+            if is_executable_file(candidate):
+                return os.path.abspath(candidate)
+        # 常见解压结构
+        candidate = os.path.join(base, "ffmpeg", "bin", "ffmpeg")
+        if is_executable_file(candidate):
+            return os.path.abspath(candidate)
+        candidate = os.path.join(base, "ffmpeg", "bin", "ffmpeg.exe")
+        if is_executable_file(candidate):
+            return os.path.abspath(candidate)
+
+    # 1) 环境变量
     env = os.environ.get("FFMPEG_SRC")
     if env:
-        if os.path.isfile(env):
-            return env
-    candidates = [
-        "ffmpeg",
-        "ffmpeg.exe",
-        os.path.join("ffmpeg", "bin", "ffmpeg"),
-        os.path.join("ffmpeg", "bin", "ffmpeg.exe"),
-    ]
-    for p in candidates:
-        if os.path.isfile(p):
-            return p
-    # 最后尝试 PATH
+        p = str(env).strip().strip('"').strip("'")
+        p = os.path.expanduser(p)
+        if os.path.isdir(p):
+            # 目录下可能直接有 ffmpeg 或 bin/ffmpeg
+            candidate = os.path.join(p, "ffmpeg")
+            if is_executable_file(candidate):
+                return os.path.abspath(candidate)
+            candidate = os.path.join(p, "bin", "ffmpeg")
+            if is_executable_file(candidate):
+                return os.path.abspath(candidate)
+        if is_executable_file(p):
+            return os.path.abspath(p)
+
+    # 2) PATH
     which = shutil.which("ffmpeg")
-    if which:
-        return which
+    if which and is_executable_file(which):
+        return os.path.abspath(which)
+
+    # 3) 常见路径（特别是 macOS/Homebrew）
+    common = [
+        "/opt/homebrew/bin/ffmpeg",
+        "/usr/local/bin/ffmpeg",
+        "/usr/bin/ffmpeg",
+        "/usr/local/opt/ffmpeg/bin/ffmpeg",
+        "/opt/homebrew/opt/ffmpeg/bin/ffmpeg",
+    ]
+    for p in common:
+        if is_executable_file(p):
+            return os.path.abspath(p)
+
+    # 4) 手动扫描 PATH
+    path_env = os.environ.get("PATH", "")
+    for d in path_env.split(os.pathsep):
+        try:
+            candidate = os.path.join(d, "ffmpeg")
+            if is_executable_file(candidate):
+                return os.path.abspath(candidate)
+        except Exception:
+            continue
+
     return None
 
 
@@ -61,6 +127,8 @@ def main():
         sep = ";" if sys.platform == "win32" else ":"
         args.append(f"--add-binary={ff_abspath}{sep}.")
         print(f"Including ffmpeg binary: {ff_abspath}")
+    else:
+        print("FFMPEG_SRC not set — build will NOT include ffmpeg (default).")
 
     print(f"Running PyInstaller with args: {args}")
     PyInstaller.__main__.run(args)
