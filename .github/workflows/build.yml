@@ -15,18 +15,8 @@ jobs:
           python-version: '3.11'
       - name: Install PyInstaller
         run: pip install pyinstaller
-      - name: Install ffmpeg (choco)
-        run: choco install ffmpeg -y
-        shell: powershell
-      - name: Get ffmpeg path
-        run: |
-          $p = (Get-Command ffmpeg).Source
-          echo "FFMPEG_SRC=$p" >> $env:GITHUB_ENV
-        shell: powershell
       - name: Build
         run: python build.py
-        env:
-          FFMPEG_SRC: ${{ env.FFMPEG_SRC }}
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -40,17 +30,10 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      - name: Install PyInstaller and ffmpeg
-        run: |
-          sudo apt-get update
-          pip install pyinstaller
-          sudo apt-get install -y ffmpeg
-      - name: Get ffmpeg path
-        run: echo "FFMPEG_SRC=$(which ffmpeg)" >> $GITHUB_ENV
+      - name: Install PyInstaller
+        run: pip install pyinstaller
       - name: Build
         run: python build.py
-        env:
-          FFMPEG_SRC: ${{ env.FFMPEG_SRC }}
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -64,18 +47,10 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      - name: Install ffmpeg (Homebrew)
-        run: |
-          brew update || true
-          brew install ffmpeg
       - name: Install PyInstaller
         run: pip install pyinstaller
-      - name: Get ffmpeg path
-        run: echo "FFMPEG_SRC=$(which ffmpeg)" >> $GITHUB_ENV
       - name: Build
         run: python build.py
-        env:
-          FFMPEG_SRC: ${{ env.FFMPEG_SRC }}
       - name: Create DMG
         run: |
           TMPDIR=$(mktemp -d)
