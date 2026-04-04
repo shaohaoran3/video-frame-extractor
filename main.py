@@ -7,7 +7,6 @@ Video Frame Extractor — 使用 FFmpeg 从视频中提取帧
 import os
 import sys
 import re
-import shutil
 import subprocess
 import threading
 import tkinter as tk
@@ -22,20 +21,75 @@ _SP_KWARGS = {"creationflags": 0x08000000} if sys.platform == "win32" else {}
 # ---------------------------------------------------------------------------
 # FFmpeg 查找
 # ---------------------------------------------------------------------------
-def _base_dir():
+def _is_executable_file(path):
+    return bool(path) and os.path.isfile(path) and os.access(path, os.X_OK)
+
+
+def _app_dir():
     if getattr(sys, "frozen", False):
-        return os.path.dirname(sys.executable)
+        return os.path.dirname(os.path.abspath(sys.executable))
     return os.path.dirname(os.path.abspath(__file__))
 
 
-def find_ffmpeg():
-    """在本地目录和系统 PATH 中查找 ffmpeg。"""
+def _common_ffmpeg_paths():
     name = "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"
-    local = os.path.join(_base_dir(), name)
-    if os.path.isfile(local):
-        return local
-    found = shutil.which("ffmpeg")
-    return found
+
+    if sys.platform == "win32":
+        return [
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WinGet", "Links", name),
+            os.path.join(os.environ.get("ProgramFiles", ""), "ffmpeg", "bin", name),
+            os.path.join(os.environ.get("ProgramFiles(x86)", ""), "ffmpeg", "bin", name),
+            os.path.join("C:\\ffmpeg", "bin", name),
+            os.path.join("C:\\ffmpeg", name),
+        ]
+
+    if sys.platform == "darwin":
+        return [
+            "/opt/homebrew/bin/ffmpeg",
+            "/usr/local/bin/ffmpeg",
+            "/usr/bin/ffmpeg",
+        ]
+
+    return [
+        "/usr/local/bin/ffmpeg",
+        "/usr/bin/ffmpeg",
+        "/snap/bin/ffmpeg",
+    ]
+
+
+def _search_ffmpeg_in_path():
+    name = "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"
+    app_dir = os.path.normcase(os.path.abspath(_app_dir()))
+
+    for folder in os.get_exec_path():
+        if not folder:
+            continue
+        folder_path = os.path.normcase(os.path.abspath(folder))
+        if folder_path == app_dir:
+            continue
+        candidate = os.path.join(folder, name)
+        if _is_executable_file(candidate):
+            return candidate
+
+    return None
+
+
+def find_ffmpeg():
+    """只查找用户系统中已安装的 ffmpeg。"""
+    for env_name in ("FFMPEG_PATH", "FFMPEG_BIN"):
+        env_path = os.environ.get(env_name)
+        if _is_executable_file(env_path):
+            return env_path
+
+    found = _search_ffmpeg_in_path()
+    if found:
+        return found
+
+    for path in _common_ffmpeg_paths():
+        if _is_executable_file(path):
+            return path
+
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -124,7 +178,7 @@ class App:
         self._build_ui()
 
         if not self.ffmpeg:
-            self.log("⚠ 未找到 FFmpeg！请安装 FFmpeg 或将其放在本程序同目录下。")
+            self.log("⚠ 未找到 FFmpeg！请先在系统中安装 FFmpeg。")
             self.log("  下载地址: https://ffmpeg.org/download.html")
 
     # ---- 构建界面 ----
@@ -249,7 +303,7 @@ class App:
 
         if not self.ffmpeg:
             messagebox.showerror(
-                "错误", "未找到 FFmpeg！\n请安装 FFmpeg 或将其放在本程序同目录下。"
+                "错误", "未找到 FFmpeg！\n请先在系统中安装 FFmpeg，并确保命令 ffmpeg 可用。"
             )
             return
 

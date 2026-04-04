@@ -12,7 +12,7 @@
 
 ## 前置依赖
 
-- **FFmpeg** — 必须安装并加入系统 PATH，或将 `ffmpeg` / `ffmpeg.exe` 放在程序同目录下
+- **FFmpeg** — 必须预先安装在用户电脑上，并确保系统可以找到 `ffmpeg`
   - Windows: https://www.gyan.dev/ffmpeg/builds/ （下载 release full → 解压 → 将 bin 目录加入 PATH）
   - macOS: `brew install ffmpeg`
   - Linux: `sudo apt install ffmpeg` 或 `sudo dnf install ffmpeg`
@@ -43,7 +43,7 @@ python build.py
 | macOS   | `dist/VideoFrameExtractor.app`      |
 | Linux   | `dist/VideoFrameExtractor`          |
 
-将可执行文件分发给用户，双击即可运行（如果没有打包 ffmpeg，运行时仍需系统中有 FFmpeg）。
+将可执行文件分发给用户后，程序会直接调用用户电脑里已安装的 FFmpeg；打包产物本身不包含 FFmpeg。
 
 ## 打包说明与跨平台构建
 
@@ -56,11 +56,7 @@ python build.py
 
 - 自动 CI 构建（推荐）：仓库中已附带 GitHub Actions workflow（`.github/workflows/build.yml`），它会在 `windows-latest` / `ubuntu-latest` / `macos-latest` 上构建并将可执行产物作为 artifact 上传。
 
-- 将 ffmpeg 一并打包：
-  - 将 ffmpeg 二进制放到仓库根目录或 `ffmpeg/bin/`，`build.py` 会自动检测并把它加入 PyInstaller 包中；或在构建时通过环境变量 `FFMPEG_SRC` 指定二进制路径：
-    ```bash
-    FFMPEG_SRC=/path/to/ffmpeg python build.py
-    ```
+- 运行方式：程序本质上是一个图形化的 FFmpeg 命令执行器，打包后的应用不会携带 FFmpeg，而是调用用户系统里已安装的 FFmpeg。
 
 ## 时间格式说明
 
